@@ -10,7 +10,7 @@ import {
   ImageBackground,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Search, GraduationCap, Moon, Sun } from 'lucide-react-native';
+import { Search, GraduationCap, Moon, Sun } from 'lucide-react-native'; // TODO: Add type declarations for 'lucide-react-native' if needed
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -92,7 +92,7 @@ const departments = [
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredDepartments, setFilteredDepartments] = useState(departments);
-  const { colors, isDark, toggleTheme } = useTheme();
+  const { colors } = useTheme();
   const { user } = useAuth();
 
   useEffect(() => {
@@ -128,13 +128,6 @@ export default function HomeScreen() {
               <Text style={styles.welcomeText}>Welcome, {user?.name}!</Text>
               <Text style={styles.collegeText}>Gojan School of Business and Technology</Text>
             </View>
-            <TouchableOpacity style={styles.themeButton} onPress={toggleTheme}>
-              {isDark ? (
-                <Sun size={24} color="#FFFFFF" />
-              ) : (
-                <Moon size={24} color="#FFFFFF" />
-              )}
-            </TouchableOpacity>
           </View>
         </View>
       </ImageBackground>

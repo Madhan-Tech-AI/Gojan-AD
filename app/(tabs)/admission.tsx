@@ -12,7 +12,7 @@ import {
 import { Phone, Mail, FileText, GraduationCap } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useData } from '@/contexts/DataContext';
 
 const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -50,6 +50,7 @@ export default function AdmissionScreen() {
 
   const { colors } = useTheme();
   const { user } = useAuth();
+  const { addAdmission } = useData();
 
   const handleContactCall = () => {
     const phoneNumber = '+919876543210'; // Dummy number
@@ -90,16 +91,17 @@ export default function AdmissionScreen() {
     setLoading(true);
     try {
       const admissionData = {
-        ...formData,
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        courseInterested: formData.courseInterested,
+        address: formData.address,
+        remarks: formData.remarks,
         userId: user?.id,
       };
 
-      const existing = await AsyncStorage.getItem('admissions');
-      const admissions = existing ? JSON.parse(existing) : [];
-      admissions.push(admissionData);
-      await AsyncStorage.setItem('admissions', JSON.stringify(admissions));
+      // Use DataContext to add admission
+      await addAdmission(admissionData);
 
       Alert.alert(
         'Application Submitted',
@@ -444,10 +446,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     height: 80,
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderColor: colors.error,
   },
   errorText: {
-    color: '#EF4444',
+    color: colors.error,
     fontSize: 14,
     marginTop: 4,
   },

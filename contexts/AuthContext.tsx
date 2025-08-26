@@ -6,12 +6,16 @@ interface User {
   name: string;
   email: string;
   phone?: string;
+  role: 'admin' | 'student';
+  password?: string;
+  institutionName?: string;
+  institutionCode?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string, role: 'admin' | 'student', institutionName?: string, institutionCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   isLoading: boolean;
@@ -25,7 +29,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadUser();
+    initializeSampleUsers();
   }, []);
+
+  const initializeSampleUsers = async () => {
+    try {
+      const existingUsers = await AsyncStorage.getItem('users');
+      if (!existingUsers) {
+        // Add sample users for testing
+        const sampleUsers = [
+          {
+            id: 'admin1',
+            name: 'Gojan School of Business and Technology',
+            email: 'admin@gojan.edu',
+            password: 'admin123',
+            role: 'admin',
+            institutionName: 'Gojan School of Business and Technology',
+            institutionCode: 'GOJAN001'
+          },
+          {
+            id: 'student1',
+            name: 'Student User',
+            email: 'student@gojan.edu',
+            password: 'student123',
+            role: 'student'
+          }
+        ];
+        await AsyncStorage.setItem('users', JSON.stringify(sampleUsers));
+      }
+    } catch (error) {
+      console.error('Error initializing sample users:', error);
+    }
+  };
 
   const loadUser = async () => {
     try {
@@ -50,14 +85,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Invalid credentials');
     }
 
-    const userWithoutPassword = { ...foundUser };
-    delete userWithoutPassword.password;
+    const { password: _, ...userWithoutPassword } = foundUser;
     
     setUser(userWithoutPassword);
     await AsyncStorage.setItem('user', JSON.stringify(userWithoutPassword));
   };
 
-  const signup = async (name: string, email: string, password: string) => {
+  const signup = async (name: string, email: string, password: string, role: 'admin' | 'student', institutionName?: string, institutionCode?: string) => {
     const storedUsers = await AsyncStorage.getItem('users');
     const users = storedUsers ? JSON.parse(storedUsers) : [];
     
@@ -71,13 +105,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name,
       email,
       password, // In a real app, this should be hashed
+      role,
+      institutionName,
+      institutionCode,
     };
 
     users.push(newUser);
     await AsyncStorage.setItem('users', JSON.stringify(users));
 
-    const userWithoutPassword = { ...newUser };
-    delete userWithoutPassword.password;
+    const { password: _, ...userWithoutPassword } = newUser;
     
     setUser(userWithoutPassword);
     await AsyncStorage.setItem('user', JSON.stringify(userWithoutPassword));

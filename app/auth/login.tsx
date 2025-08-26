@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 import { Link, router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,9 +23,30 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{email?: string; password?: string}>({});
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'student' | null>(null);
   
   const { login } = useAuth();
   const { colors } = useTheme();
+
+  useEffect(() => {
+    loadSelectedRole();
+  }, []);
+
+  const loadSelectedRole = async () => {
+    try {
+      const role = await AsyncStorage.getItem('selectedRole');
+      console.log('Login - Loaded role from storage:', role);
+      if (role === 'admin' || role === 'student') {
+        setSelectedRole(role);
+        console.log('Login - Role set to:', role);
+      } else {
+        console.log('Login - No valid role found, redirecting to welcome screen');
+        router.replace('/');
+      }
+    } catch (error) {
+      console.error('Error loading role:', error);
+    }
+  };
 
   const handleLogin = async () => {
     setLoading(true);
@@ -47,7 +69,16 @@ export default function LoginScreen() {
 
     try {
       await login(email, password);
-      router.replace('/(tabs)');
+      
+      // Route based on selected role
+      if (selectedRole === 'admin') {
+        router.replace('/admin/dashboard');
+      } else {
+        router.replace('/(tabs)');
+      }
+      
+      // Clear the selected role from storage
+      await AsyncStorage.removeItem('selectedRole');
     } catch (error) {
       Alert.alert('Login Error', 'Invalid credentials. Please try again.');
     } finally {
@@ -61,17 +92,25 @@ export default function LoginScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Sign in to Gojan AD</Text>
+        <Text style={styles.subtitle}>
+          Sign in to Gojan School of Business and Technology {selectedRole && `as ${selectedRole}`}
+        </Text>
       </View>
 
       <View style={styles.form}>
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>
+            {selectedRole === 'admin' ? 'Admin Mail' : 'Email'}
+          </Text>
           <TextInput
             style={[styles.input, errors.email && styles.inputError]}
             value={email}
             onChangeText={setEmail}
-            placeholder="Enter your email"
+            placeholder={
+              selectedRole === 'admin' 
+                ? "Enter admin email address" 
+                : "Enter your email"
+            }
             placeholderTextColor={colors.textSecondary}
             keyboardType="email-address"
             autoCapitalize="none"
@@ -160,10 +199,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderColor: colors.border,
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderColor: colors.error,
   },
   errorText: {
-    color: '#EF4444',
+    color: colors.error,
     fontSize: 14,
     marginTop: 4,
   },

@@ -26,7 +26,7 @@ export default function ProfileScreen() {
     phone: '',
   });
 
-  const { colors, isDark, toggleTheme } = useTheme();
+  const { colors } = useTheme();
   const { user, updateProfile, logout } = useAuth();
 
   useEffect(() => {
@@ -146,28 +146,6 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.content}>
-        <View style={styles.settingsCard}>
-          <Text style={styles.cardTitle}>Appearance</Text>
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              {isDark ? (
-                <Moon size={20} color={colors.textPrimary} />
-              ) : (
-                <Sun size={20} color={colors.textPrimary} />
-              )}
-              <Text style={styles.settingText}>
-                {isDark ? 'Dark Mode' : 'Light Mode'}
-              </Text>
-            </View>
-            <Switch
-              value={isDark}
-              onValueChange={toggleTheme}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={'#FFFFFF'}
-            />
-          </View>
-        </View>
-
         <View style={styles.statsCard}>
           <Text style={styles.cardTitle}>Statistics</Text>
           <View style={styles.statsContainer}>
@@ -177,7 +155,7 @@ export default function ProfileScreen() {
               <Text style={styles.statLabel}>Appointments</Text>
             </View>
             <View style={styles.statItem}>
-              <BookOpen size={24} color={colors.secondary} />
+              <BookOpen size={24} color={colors.primary} />
               <Text style={styles.statNumber}>{admissions.length}</Text>
               <Text style={styles.statLabel}>Applications</Text>
             </View>
@@ -330,7 +308,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.textSecondary,
   },
   logoutButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.error,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',

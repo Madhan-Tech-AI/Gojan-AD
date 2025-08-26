@@ -14,7 +14,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Calendar, ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useData } from '@/contexts/DataContext';
 
 const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,6 +44,7 @@ export default function AppointmentBookingScreen() {
 
   const { colors } = useTheme();
   const { user } = useAuth();
+  const { addAppointment } = useData();
 
   React.useEffect(() => {
     if (user) {
@@ -111,19 +112,17 @@ export default function AppointmentBookingScreen() {
     setLoading(true);
     try {
       const appointmentData = {
-        ...formData,
-        id: Date.now().toString(),
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        preferredDate: formData.preferredDate.toISOString(),
+        remarks: formData.remarks,
         userId: user?.id,
-        status: 'Pending',
-        timestamp: new Date().toISOString(),
-        assignedDate: '', // To be filled by admin
       };
 
-      // Save to AsyncStorage
-      const existing = await AsyncStorage.getItem('appointments');
-      const appointments = existing ? JSON.parse(existing) : [];
-      appointments.push(appointmentData);
-      await AsyncStorage.setItem('appointments', JSON.stringify(appointments));
+      // Use DataContext to add appointment
+      await addAppointment(appointmentData);
 
       Alert.alert(
         'Appointment Booked',
@@ -314,10 +313,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     height: 100,
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderColor: colors.error,
   },
   errorText: {
-    color: '#EF4444',
+    color: colors.error,
     fontSize: 14,
     marginTop: 4,
   },

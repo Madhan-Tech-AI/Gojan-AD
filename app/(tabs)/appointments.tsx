@@ -7,29 +7,27 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { Calendar, Clock, Phone } from 'lucide-react-native';
+import { Calendar, Clock, MapPin, User, Phone, Mail } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
 
 export default function AppointmentsScreen() {
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const { colors } = useTheme();
+  const { user } = useAuth();
+  const { appointments, updateAppointmentStatus, refreshData } = useData();
+  const [userAppointments, setUserAppointments] = useState<any[]>([]);
 
   useEffect(() => {
-    loadAppointments();
+    refreshData();
   }, []);
 
-  const loadAppointments = async () => {
-    try {
-      const data = await AsyncStorage.getItem('appointments');
-      setAppointments(data ? JSON.parse(data) : []);
-    } catch (error) {
-      console.error('Error loading appointments:', error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (user && appointments) {
+      const filtered = appointments.filter(apt => apt.userId === user.id);
+      setUserAppointments(filtered);
     }
-  };
+  }, [user, appointments]);
 
   const handleCancel = async (appointmentId: string) => {
     Alert.alert(
@@ -38,111 +36,128 @@ export default function AppointmentsScreen() {
       [
         { text: 'No', style: 'cancel' },
         {
-          text: 'Yes, Cancel',
+          text: 'Yes',
           style: 'destructive',
           onPress: async () => {
             try {
-              const updated = appointments.map((apt: any) =>
-                apt.id === appointmentId ? { ...apt, status: 'Cancelled' } : apt
-              );
-              await AsyncStorage.setItem('appointments', JSON.stringify(updated));
-              setAppointments(updated);
-              Alert.alert('Success', 'Appointment cancelled successfully.');
+              await updateAppointmentStatus(appointmentId, 'cancelled');
+              Alert.alert('Success', 'Appointment cancelled successfully');
             } catch (error) {
-              Alert.alert('Error', 'Failed to cancel appointment.');
+              Alert.alert('Error', 'Failed to cancel appointment');
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
-  const styles = createStyles(colors);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+        return colors.success;
+      case 'cancelled':
+        return colors.error;
+      case 'pending':
+        return colors.warning;
+      default:
+        return colors.textSecondary;
+    }
+  };
 
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Text style={styles.loadingText}>Loading appointments...</Text>
-      </View>
-    );
-  }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const styles = createStyles(colors);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.title}>My Appointments</Text>
-        <Text style={styles.subtitle}>Manage your counselling sessions</Text>
+        <Text style={styles.subtitle}>Track your counselling appointments</Text>
       </View>
 
-      {appointments.length === 0 ? (
-        <View style={styles.emptyContainer}>
+      {userAppointments.length === 0 ? (
+        <View style={styles.emptyState}>
           <Calendar size={64} color={colors.textSecondary} />
-          <Text style={styles.emptyTitle}>No appointments yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Book your first counselling appointment from the home screen
+          <Text style={styles.emptyStateTitle}>No Appointments</Text>
+          <Text style={styles.emptyStateText}>
+            You haven't booked any appointments yet. Book your first appointment from the home screen.
           </Text>
         </View>
       ) : (
         <View style={styles.appointmentsList}>
-          {appointments.map((appointment) => (
+          {userAppointments.map((appointment) => (
             <View key={appointment.id} style={styles.appointmentCard}>
               <View style={styles.cardHeader}>
-                <Text style={styles.department}>{appointment.department}</Text>
-                <View style={[
-                  styles.statusBadge,
-                  appointment.status === 'Confirmed' && styles.statusConfirmed,
-                  appointment.status === 'Pending' && styles.statusPending,
-                  appointment.status === 'Cancelled' && styles.statusCancelled,
-                ]}>
-                  <Text style={styles.statusText}>{appointment.status}</Text>
-                </View>
-              </View>
-
-              <View style={styles.cardContent}>
-                <View style={styles.infoRow}>
-                  <Calendar size={16} color={colors.textSecondary} />
-                  <Text style={styles.infoText}>
-                    {new Date(appointment.preferredDate).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
+                <View style={styles.statusContainer}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      { backgroundColor: getStatusColor(appointment.status) },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.statusText,
+                      { color: getStatusColor(appointment.status) },
+                    ]}
+                  >
+                    {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
                   </Text>
                 </View>
+                {appointment.status === 'pending' && (
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => handleCancel(appointment.id)}
+                  >
+                    <Text style={[styles.actionButtonText, { color: colors.error }]}>
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
+              <View style={styles.appointmentInfo}>
+                <View style={styles.infoRow}>
+                  <User size={16} color={colors.textSecondary} />
+                  <Text style={styles.infoText}>{appointment.name}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Mail size={16} color={colors.textSecondary} />
+                  <Text style={styles.infoText}>{appointment.email}</Text>
+                </View>
                 <View style={styles.infoRow}>
                   <Phone size={16} color={colors.textSecondary} />
                   <Text style={styles.infoText}>{appointment.phone}</Text>
                 </View>
-
+                <View style={styles.infoRow}>
+                  <MapPin size={16} color={colors.textSecondary} />
+                  <Text style={styles.infoText}>{appointment.department}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Calendar size={16} color={colors.textSecondary} />
+                  <Text style={styles.infoText}>
+                    Preferred: {formatDate(appointment.preferredDate)}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Clock size={16} color={colors.textSecondary} />
+                  <Text style={styles.infoText}>
+                    Booked: {formatDate(appointment.timestamp)}
+                  </Text>
+                </View>
                 {appointment.remarks && (
-                  <View style={styles.remarksContainer}>
-                    <Text style={styles.remarksLabel}>Remarks:</Text>
-                    <Text style={styles.remarksText}>{appointment.remarks}</Text>
-                  </View>
-                )}
-
-                {appointment.status !== 'Cancelled' && (
-                  <View style={styles.actions}>
-                    <TouchableOpacity 
-                      style={styles.actionButton} 
-                      onPress={() => Alert.alert('Feature Coming Soon', 'Reschedule functionality will be available soon.')}
-                    >
-                      <Clock size={16} color={colors.primary} />
-                      <Text style={[styles.actionButtonText, { color: colors.primary }]}>
-                        Reschedule
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      style={styles.actionButton} 
-                      onPress={() => handleCancel(appointment.id)}
-                    >
-                      <Text style={[styles.actionButtonText, { color: '#EF4444' }]}>
-                        Cancel
-                      </Text>
-                    </TouchableOpacity>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoText}>
+                      <Text style={styles.label}>Remarks: </Text>
+                      {appointment.remarks}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -207,19 +222,20 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   appointmentCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: 'hidden',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginBottom: 16,
+  },
+  appointmentInfo: {
+    gap: 8,
   },
   department: {
     fontSize: 18,
@@ -247,18 +263,16 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
   },
-  cardContent: {
-    padding: 16,
-  },
+
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: 8,
   },
   infoText: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
-    marginLeft: 8,
+    flex: 1,
   },
   remarksContainer: {
     marginTop: 8,
@@ -295,5 +309,55 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 4,
+  },
+  errorBackground: {
+    backgroundColor: colors.error + '20',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.textSecondary + '10',
+    borderRadius: 20,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  cancelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: colors.error + '10',
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    marginTop: 60,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  label: {
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  appointmentInfo: {
+    gap: 8,
   },
 });

@@ -1,16 +1,29 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Redirect } from 'expo-router';
-import { useAuth } from '@/hooks/useAuth';
-import { useTheme } from '@/hooks/useTheme';
+import { Redirect, router } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface AuthGuardProps {
   children: React.ReactNode;
+  requireAuth?: boolean;
+  requireRole?: 'admin' | 'student';
 }
 
-export default function AuthGuard({ children }: AuthGuardProps) {
+export default function AuthGuard({ children, requireAuth = true, requireRole }: AuthGuardProps) {
   const { user, isLoading } = useAuth();
   const { colors } = useTheme();
+
+  useEffect(() => {
+    if (!isLoading && user && requireRole && user.role !== requireRole) {
+      // Redirect to appropriate dashboard based on user role
+      if (user.role === 'admin') {
+        router.replace('/admin/dashboard');
+      } else {
+        router.replace('/(tabs)');
+      }
+    }
+  }, [user, isLoading, requireRole]);
 
   if (isLoading) {
     return (
@@ -22,8 +35,12 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  if (!user) {
-    return <Redirect href="/auth/login" />;
+  if (requireAuth && !user) {
+    return <Redirect href="/" />;
+  }
+
+  if (requireRole && user && user.role !== requireRole) {
+    return null; // Will redirect in useEffect
   }
 
   return <>{children}</>;

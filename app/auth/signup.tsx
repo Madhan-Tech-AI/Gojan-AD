@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 import { Link, router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,29 +23,73 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [institutionName, setInstitutionName] = useState('');
+  const [institutionCode, setInstitutionCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{
     name?: string;
     email?: string;
     password?: string;
     confirmPassword?: string;
+    institutionName?: string;
+    institutionCode?: string;
   }>({});
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'student' | null>(null);
   
   const { signup } = useAuth();
   const { colors } = useTheme();
 
+  useEffect(() => {
+    loadSelectedRole();
+  }, []);
+
+  const loadSelectedRole = async () => {
+    try {
+      const role = await AsyncStorage.getItem('selectedRole');
+      console.log('Loaded role from storage:', role);
+      if (role === 'admin' || role === 'student') {
+        setSelectedRole(role);
+        console.log('Role set to:', role);
+      } else {
+        console.log('No valid role found, redirecting to welcome screen');
+        router.replace('/');
+      }
+    } catch (error) {
+      console.error('Error loading role:', error);
+    }
+  };
+
   const handleSignup = async () => {
+    if (!selectedRole) {
+      Alert.alert('Error', 'Please select a role first');
+      return;
+    }
+
     setLoading(true);
     setErrors({});
 
     // Validation
     const newErrors: any = {};
-    if (name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
+    
+    if (selectedRole === 'admin') {
+      if (institutionName.trim().length < 2) {
+        newErrors.institutionName = 'Institution name must be at least 2 characters';
+      }
+      if (institutionCode.trim().length < 2) {
+        newErrors.institutionCode = 'Institution code must be at least 2 characters';
+      }
+      if (!validateEmail(email)) {
+        newErrors.email = 'Please enter a valid admin email address';
+      }
+    } else {
+      if (name.trim().length < 2) {
+        newErrors.name = 'Name must be at least 2 characters';
+      }
+      if (!validateEmail(email)) {
+        newErrors.email = 'Please enter a valid email address';
+      }
     }
-    if (!validateEmail(email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
+    
     if (password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
     }
@@ -59,9 +104,30 @@ export default function SignupScreen() {
     }
 
     try {
-      await signup(name, email, password);
+      // For admin, use institution name as the name field
+      const displayName = selectedRole === 'admin' ? institutionName : name;
+      await signup(
+        displayName, 
+        email, 
+        password, 
+        selectedRole,
+        selectedRole === 'admin' ? institutionName : undefined,
+        selectedRole === 'admin' ? institutionCode : undefined
+      );
       Alert.alert('Success', 'Account created successfully!', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)') }
+        { 
+          text: 'OK', 
+          onPress: async () => {
+            // Route based on selected role
+            if (selectedRole === 'admin') {
+              router.replace('/admin/dashboard');
+            } else {
+              router.replace('/(tabs)');
+            }
+            // Clear the selected role from storage
+            await AsyncStorage.removeItem('selectedRole');
+          }
+        }
       ]);
     } catch (error) {
       Alert.alert('Signup Error', 'Failed to create account. Please try again.');
@@ -76,38 +142,91 @@ export default function SignupScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Join Gojan AD today</Text>
+        <Text style={styles.subtitle}>
+          Join Gojan School of Business and Technology today {selectedRole && `as ${selectedRole}`}
+        </Text>
       </View>
 
       <View style={styles.form}>
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Full Name</Text>
-          <TextInput
-            style={[styles.input, errors.name && styles.inputError]}
-            value={name}
-            onChangeText={setName}
-            placeholder="Enter your full name"
-            placeholderTextColor={colors.textSecondary}
-            autoCapitalize="words"
-            autoComplete="name"
-          />
-          {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-        </View>
+        {selectedRole === 'admin' ? (
+          // Admin signup fields
+          <>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Institution Name</Text>
+              <TextInput
+                style={[styles.input, errors.institutionName && styles.inputError]}
+                value={institutionName}
+                onChangeText={setInstitutionName}
+                placeholder="Enter institution name"
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="words"
+                autoComplete="organization"
+              />
+              {errors.institutionName && <Text style={styles.errorText}>{errors.institutionName}</Text>}
+            </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={[styles.input, errors.email && styles.inputError]}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Enter your email"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-        </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Institution Code</Text>
+              <TextInput
+                style={[styles.input, errors.institutionCode && styles.inputError]}
+                value={institutionCode}
+                onChangeText={setInstitutionCode}
+                placeholder="Enter institution code"
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="characters"
+                autoComplete="off"
+              />
+              {errors.institutionCode && <Text style={styles.errorText}>{errors.institutionCode}</Text>}
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Admin Mail ID</Text>
+              <TextInput
+                style={[styles.input, errors.email && styles.inputError]}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter admin email address"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            </View>
+          </>
+        ) : (
+          // Student signup fields
+          <>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Full Name</Text>
+              <TextInput
+                style={[styles.input, errors.name && styles.inputError]}
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter your full name"
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="words"
+                autoComplete="name"
+              />
+              {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={[styles.input, errors.email && styles.inputError]}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter your email address"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            </View>
+          </>
+        )}
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Password</Text>
@@ -203,10 +322,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderColor: colors.border,
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderColor: colors.error,
   },
   errorText: {
-    color: '#EF4444',
+    color: colors.error,
     fontSize: 14,
     marginTop: 4,
   },

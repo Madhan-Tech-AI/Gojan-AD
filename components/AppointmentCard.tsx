@@ -87,7 +87,7 @@ export default function AppointmentCard({
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionButton} onPress={onCancel}>
-              <Text style={[styles.actionButtonText, { color: '#EF4444' }]}>
+              <Text style={[styles.actionButtonText, { color: colors.error }]}>
                 Cancel
               </Text>
             </TouchableOpacity>
@@ -206,5 +206,8 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 4,
+  },
+  errorBackground: {
+    backgroundColor: colors.error + '20',
   },
 });

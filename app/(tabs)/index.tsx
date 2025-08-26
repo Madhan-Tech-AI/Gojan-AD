@@ -11,9 +11,10 @@ import {
   Dimensions,
   Linking,
   Animated,
+  PanResponder,
 } from 'react-native';
 import { router } from 'expo-router';
-import { GraduationCap, MapPin, Phone, Mail } from 'lucide-react-native';
+import { GraduationCap, MapPin, Phone, Mail, MessageCircle } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -96,6 +97,46 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const ctaScale = useRef(new Animated.Value(1)).current;
+  const [showChat, setShowChat] = React.useState(false);
+  const [chatInput, setChatInput] = React.useState('');
+  const [chatMessages, setChatMessages] = React.useState<{ id: string; role: 'user' | 'assistant'; text: string }[]>([
+    { id: 'c1', role: 'assistant', text: 'Hi! Ask about appointment or admission process, or campus facilities.' }
+  ]);
+  const chatSlide = useRef(new Animated.Value(0)).current; // 0 hidden, 1 shown
+  const screen = Dimensions.get('window');
+  const pan = useRef(new Animated.ValueXY({ x: Math.max(16, screen.width - 80), y: 120 })).current;
+  const chatAnchor = useRef({ x: Math.max(16, screen.width - 80), y: 120 }).current;
+  const movedRef = useRef(false);
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        movedRef.current = false;
+        const cur = (pan as any).__getValue();
+        pan.setOffset({ x: cur.x, y: cur.y });
+        pan.setValue({ x: 0, y: 0 });
+      },
+      onPanResponderMove: (evt, gesture) => {
+        if (!movedRef.current && (Math.abs(gesture.dx) + Math.abs(gesture.dy)) > 10) {
+          movedRef.current = true;
+        }
+        Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false })(evt, gesture);
+      },
+      onPanResponderRelease: (_evt, gesture) => {
+        pan.flattenOffset();
+        const cur = (pan as any).__getValue();
+        // Clamp within screen bounds
+        const margin = 8;
+        const btnSize = 44;
+        const clampedX = Math.max(margin, Math.min(cur.x, screen.width - btnSize - margin));
+        const clampedY = Math.max(60, Math.min(cur.y, screen.height - btnSize - 60));
+        pan.setValue({ x: clampedX, y: clampedY });
+        if (!movedRef.current) {
+          openChat();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -120,9 +161,57 @@ export default function HomeScreen() {
   };
 
   const styles = createStyles(colors);
+  const handleChatSend = () => {
+    const text = chatInput.trim();
+    if (!text) return;
+    const add = (role: 'user' | 'assistant', t: string) => setChatMessages(prev => [...prev, { id: Date.now().toString()+Math.random(), role, text: t }]);
+    add('user', text);
+    setChatInput('');
+
+    const lower = text.toLowerCase();
+    let reply = '';
+    if (/appointment/.test(lower)) {
+      reply = 'To book an appointment, choose a department and pick a weekday date. You’ll receive confirmation and assigned slot soon.';
+    } else if (/admission/.test(lower)) {
+      reply = 'Admission process: apply online, submit required documents (10th/12th, TC, ID), and attend counselling. Our team will guide you throughout.';
+    } else if (/infrastructure|campus|classroom|lab|library/.test(lower)) {
+      reply = 'Our campus features smart classrooms, modern labs, a rich library, and conference halls supporting practical learning.';
+    } else if (/food|canteen|mess/.test(lower)) {
+      reply = 'Canteen offers hygienic, tasty food with multiple options for students throughout the day.';
+    } else if (/sport|game|ground|court|track/.test(lower)) {
+      reply = 'We support diverse sports with cricket ground, volleyball, badminton, tennis, basketball courts and an athletics track.';
+    } else if (/hostel/.test(lower)) {
+      reply = 'Separate hostels provide a safe, comfortable stay with essential amenities and study-friendly environment.';
+    } else if (/faculty|staff|teacher/.test(lower)) {
+      reply = 'Experienced and supportive faculty mentor students with a focus on fundamentals, projects, and placements.';
+    } else if (/contact|phone|email|map|address/.test(lower)) {
+      reply = 'Call: 044-26311045 | +91 70107 23984 • Email: gsbt@gsbt.edu.in • Address: Gojan College Road, Redhills, Chennai - 600052';
+    } else {
+      reply = "I'm here to help with appointments, admissions, and campus details. Try asking: 'admission process' or 'appointment booking'.";
+    }
+    setTimeout(() => add('assistant', reply), 200);
+  };
+
+  const openChat = () => {
+    // Reset chat content each time it's opened
+    setChatMessages([{ id: 'c1', role: 'assistant', text: 'Hi! Ask about appointment or admission process, or campus facilities.' }]);
+    setChatInput('');
+    setShowChat(true);
+    // Anchor chat below the current icon position
+    const cur = (pan as any).__getValue();
+    chatAnchor.x = cur.x;
+    chatAnchor.y = cur.y;
+    chatSlide.setValue(0);
+    Animated.timing(chatSlide, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  };
+
+  const closeChat = () => {
+    Animated.timing(chatSlide, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => setShowChat(false));
+  };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
       <ImageBackground
         source={{ uri: 'https://i.pinimg.com/736x/86/74/3f/86743f9ed57ec198d0c422c835978f03.jpg' }}
         style={styles.header}
@@ -247,8 +336,65 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        
       </View>
-    </ScrollView>
+      </ScrollView>
+      {/* Draggable Chat Launcher (overlay, home-only) */}
+      <Animated.View
+        pointerEvents="box-none"
+        style={[styles.draggable, { transform: [{ translateX: pan.x }, { translateY: pan.y }] }]}
+        {...panResponder.panHandlers}
+      >
+        <View style={styles.draggableBtn}>
+          <MessageCircle size={24} color="#FFFFFF" />
+        </View>
+      </Animated.View>
+
+      {/* Floating Chat Panel anchored below icon */}
+      {showChat && (
+        <View pointerEvents="box-none" style={styles.fixedChatContainer}>
+          <Animated.View
+            style={[
+              styles.chatSheet,
+              {
+                top: chatAnchor.y + 56,
+                left: Math.max(8, Math.min(chatAnchor.x - 280, screen.width - 8 - 320)),
+                width: 320,
+                transform: [{ scale: chatSlide }],
+              },
+            ]}
+          >
+            <View style={styles.chatHeader}>
+              <Text style={styles.chatTitle}>Assistant</Text>
+              <TouchableOpacity onPress={closeChat}>
+                <Text style={{ color: colors.textSecondary }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.chatList} contentContainerStyle={styles.chatListContent} showsVerticalScrollIndicator={false}>
+              {chatMessages.map(m => (
+                <View key={m.id} style={[styles.chatBubble, m.role==='user' ? styles.chatUser : styles.chatBot]}>
+                  <Text style={styles.chatText}>{m.text}</Text>
+                </View>
+              ))}
+            </ScrollView>
+            <View style={styles.chatInputBar}>
+              <TextInput
+                style={styles.chatInput}
+                value={chatInput}
+                onChangeText={setChatInput}
+                placeholder="Type your question..."
+                placeholderTextColor={colors.textSecondary}
+                onSubmitEditing={() => handleChatSend()}
+                returnKeyType="send"
+              />
+              <TouchableOpacity style={styles.chatSend} onPress={() => handleChatSend()}>
+                <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Send</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -274,6 +420,18 @@ const createStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  headerChatBtn: {
+    backgroundColor: '#28623A',
+    padding: 10,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.9)'
+  },
+  draggableBtn: {
+    backgroundColor: 'rgba(40, 98, 58, 0.9)',
+    padding: 10,
+    borderRadius: 26,
+  },
   welcomeText: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -296,6 +454,26 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   content: {
     padding: 20,
+  },
+  topBar: {
+    height: 48,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  topChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  topChatText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   galleryRow: {
     marginBottom: 20,
@@ -320,6 +498,102 @@ const createStyles = (colors: any) => StyleSheet.create({
     height: 120,
     borderRadius: 12,
     marginBottom: 12,
+  },
+  chatFab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 30,
+    width: 56,
+    height: 100,
+    borderRadius: 28,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+  },
+  fixedChatContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'flex-start',
+  },
+  chatSheet: {
+    width: 320,
+    maxHeight: '70%',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  draggable: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    zIndex: 50,
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  chatTitle: {
+    color: colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  chatList: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    maxHeight: '75%',
+  },
+  chatListContent: { paddingBottom: 500 },
+  chatBubble: {
+    maxWidth: '80%',
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  chatUser: {
+    alignSelf: 'flex-end',
+    backgroundColor: colors.primary,
+  },
+  chatBot: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chatText: {
+    color: '#FFFFFF',
+  },
+  chatInputBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  chatInput: {
+    flex: 1,
+    backgroundColor: colors.background,
+    color: colors.textPrimary,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chatSend: {
+    backgroundColor: colors.accent,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
   },
   contactActions: {
     flexDirection: 'row',

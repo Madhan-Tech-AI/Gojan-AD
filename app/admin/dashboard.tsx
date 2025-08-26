@@ -18,7 +18,7 @@ export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const { appointments, admissions, updateAppointmentStatus, updateAdmissionStatus, refreshData, deleteAppointment, deleteAdmission } = useData();
   const [activeTab, setActiveTab] = useState<'appointments' | 'admissions'>('appointments');
-  const [appointmentFilter, setAppointmentFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
+  const [appointmentFilter, setAppointmentFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'confirmed' | 'cancelled' | 'attended' | 'missed'>('all');
   const [admissionFilter, setAdmissionFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   useEffect(() => {
@@ -34,9 +34,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAppointmentAction = async (id: string, action: 'confirm' | 'cancel') => {
+  const handleAppointmentAction = async (id: string, action: 'approve' | 'reject' | 'confirm' | 'cancel' | 'attended' | 'missed') => {
     try {
-      const status = action === 'confirm' ? 'confirmed' : 'cancelled';
+      const status = action as any;
       const assignedDate = action === 'confirm' ? new Date().toISOString() : undefined;
       await updateAppointmentStatus(id, status, assignedDate);
       Alert.alert('Success', `Appointment ${action}ed successfully`);
@@ -160,10 +160,14 @@ export default function AdminDashboard() {
           {activeTab === 'appointments' ? (
             <View>
               <Text style={styles.sectionTitle}>Appointment Requests</Text>
-              <View style={{ flexDirection: 'row', marginBottom: 12, gap: 8 }}>
-                {(['all','pending','confirmed','cancelled'] as const).map((f) => (
-                  <TouchableOpacity key={f} onPress={() => setAppointmentFilter(f)} style={[styles.actionButton, appointmentFilter===f && { backgroundColor: colors.primary }]}> 
-                    <Text style={{ color: '#FFFFFF', fontWeight: '600', textTransform: 'capitalize' }}>{f}</Text>
+              <View style={styles.filterRow}>
+                {(['all','pending','approved','rejected','confirmed','cancelled','attended','missed'] as const).map((f) => (
+                  <TouchableOpacity
+                    key={f}
+                    onPress={() => setAppointmentFilter(f)}
+                    style={[styles.filterChip, appointmentFilter===f && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                  > 
+                    <Text style={{ color: appointmentFilter===f ? '#FFFFFF' : colors.textSecondary, fontWeight: '600', textTransform: 'capitalize' }}>{f}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -195,17 +199,24 @@ export default function AdminDashboard() {
                     <View style={styles.actionButtons}>
                       {appointment.status === 'pending' && (
                         <>
-                          <TouchableOpacity 
-                            style={[styles.actionButton, styles.confirmButton]}
-                            onPress={() => handleAppointmentAction(appointment.id, 'confirm')}
-                          >
-                            <Text style={styles.actionButtonText}>Confirm</Text>
+                          <TouchableOpacity style={[styles.actionButton, styles.confirmButton]} onPress={() => handleAppointmentAction(appointment.id, 'approve')}>
+                            <Text style={styles.actionButtonText}>Approve</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity 
-                            style={[styles.actionButton, styles.rejectButton]}
-                            onPress={() => handleAppointmentAction(appointment.id, 'cancel')}
-                          >
-                            <Text style={styles.actionButtonText}>Cancel</Text>
+                          <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} onPress={() => handleAppointmentAction(appointment.id, 'reject')}>
+                            <Text style={styles.actionButtonText}>Reject</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                      {(appointment.status === 'approved' || appointment.status === 'confirmed') && (
+                        <>
+                          <TouchableOpacity style={[styles.actionButton, styles.confirmButton]} onPress={() => handleAppointmentAction(appointment.id, 'confirm')}>
+                            <Text style={styles.actionButtonText}>{appointment.assignedDate ? 'Reschedule' : 'Assign Slot'}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={[styles.actionButton, styles.approveButton]} onPress={() => handleAppointmentAction(appointment.id, 'attended')}>
+                            <Text style={styles.actionButtonText}>Attended</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} onPress={() => handleAppointmentAction(appointment.id, 'missed')}>
+                            <Text style={styles.actionButtonText}>Missed</Text>
                           </TouchableOpacity>
                         </>
                       )}
@@ -223,10 +234,14 @@ export default function AdminDashboard() {
           ) : (
             <View>
               <Text style={styles.sectionTitle}>Admission Applications</Text>
-              <View style={{ flexDirection: 'row', marginBottom: 12, gap: 8 }}>
+              <View style={styles.filterRow}>
                 {(['all','pending','approved','rejected'] as const).map((f) => (
-                  <TouchableOpacity key={f} onPress={() => setAdmissionFilter(f)} style={[styles.actionButton, admissionFilter===f && { backgroundColor: colors.primary }]}> 
-                    <Text style={{ color: '#FFFFFF', fontWeight: '600', textTransform: 'capitalize' }}>{f}</Text>
+                  <TouchableOpacity
+                    key={f}
+                    onPress={() => setAdmissionFilter(f)}
+                    style={[styles.filterChip, admissionFilter===f && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                  > 
+                    <Text style={{ color: admissionFilter===f ? '#FFFFFF' : colors.textSecondary, fontWeight: '600', textTransform: 'capitalize' }}>{f}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -394,6 +409,12 @@ const createStyles = (colors: any) => StyleSheet.create({
   statusrejected: {
     backgroundColor: colors.statusRejected,
   },
+  statusattended: {
+    backgroundColor: colors.statusConfirmed,
+  },
+  statusmissed: {
+    backgroundColor: colors.statusCancelled,
+  },
   statusText: {
     fontSize: 12,
     fontWeight: '600',
@@ -409,6 +430,20 @@ const createStyles = (colors: any) => StyleSheet.create({
     flexDirection: 'row',
     marginTop: 16,
     gap: 12,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  filterChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   actionButton: {
     flex: 1,

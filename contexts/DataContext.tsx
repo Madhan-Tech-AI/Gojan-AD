@@ -10,7 +10,7 @@ export interface Appointment {
   preferredDate: string;
   remarks: string;
   userId?: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'approved' | 'rejected' | 'confirmed' | 'cancelled' | 'attended' | 'missed';
   timestamp: string;
   assignedDate?: string;
   mode?: 'online' | 'in_person';
@@ -39,7 +39,7 @@ interface DataContextType {
   admissions: Admission[];
   addAppointment: (appointment: Omit<Appointment, 'id' | 'timestamp' | 'status'>) => Promise<void>;
   addAdmission: (admission: Omit<Admission, 'id' | 'timestamp' | 'status'>) => Promise<void>;
-  updateAppointmentStatus: (id: string, status: Appointment['status'], assignedDate?: string) => Promise<void>;
+  updateAppointmentStatus: (id: string, status: Appointment['status'], assignedDate?: string, counselorName?: string) => Promise<void>;
   updateAdmissionStatus: (id: string, status: Admission['status']) => Promise<void>;
   refreshData: () => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
@@ -110,11 +110,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateAppointmentStatus = async (id: string, status: Appointment['status'], assignedDate?: string) => {
+  const updateAppointmentStatus = async (id: string, status: Appointment['status'], assignedDate?: string, counselorName?: string) => {
     try {
       const updatedAppointments = appointments.map(apt => 
         apt.id === id 
-          ? { ...apt, status, assignedDate: assignedDate || apt.assignedDate }
+          ? { ...apt, status, assignedDate: assignedDate || apt.assignedDate, counselorName: counselorName ?? apt.counselorName }
           : apt
       );
       setAppointments(updatedAppointments);

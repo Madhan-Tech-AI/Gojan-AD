@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Hop as Home, User, Calendar, BookOpen } from 'lucide-react-native';
+import { Hop as Home, User, Calendar, BookOpen, Library } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import AuthGuard from '@/components/AuthGuard';
 
@@ -25,6 +25,15 @@ export default function TabLayout() {
             title: 'Home',
             tabBarIcon: ({ size, color }) => (
               <Home size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="courses/index"
+          options={{
+            title: 'Courses',
+            tabBarIcon: ({ size, color }) => (
+              <Library size={size} color={color} />
             ),
           }}
         />

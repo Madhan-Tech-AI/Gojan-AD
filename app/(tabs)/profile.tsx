@@ -20,6 +20,12 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [admissions, setAdmissions] = useState<any[]>([]);
+  const [settings, setSettings] = useState({
+    notificationsEmail: true,
+    notificationsPush: true,
+    language: 'en',
+    theme: 'system',
+  });
   const [editData, setEditData] = useState({
     name: '',
     email: '',
@@ -38,6 +44,7 @@ export default function ProfileScreen() {
       });
     }
     loadUserData();
+    loadSettings();
   }, [user]);
 
   const loadUserData = async () => {
@@ -64,6 +71,18 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadSettings = async () => {
+    try {
+      const s = await AsyncStorage.getItem('settings');
+      if (s) setSettings(JSON.parse(s));
+    } catch {}
+  };
+
+  const persistSettings = async (newSettings: typeof settings) => {
+    setSettings(newSettings);
+    await AsyncStorage.setItem('settings', JSON.stringify(newSettings));
   };
 
   const handleLogout = () => {
@@ -146,6 +165,64 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.content}>
+        <View style={styles.settingsCard}>
+          <Text style={styles.cardTitle}>Settings</Text>
+          <View style={{ gap: 16 }}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingText}>Email Notifications</Text>
+              </View>
+              <Switch
+                value={settings.notificationsEmail}
+                onValueChange={(v) => persistSettings({ ...settings, notificationsEmail: v })}
+              />
+            </View>
+
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingText}>Push Notifications</Text>
+              </View>
+              <Switch
+                value={settings.notificationsPush}
+                onValueChange={(v) => persistSettings({ ...settings, notificationsPush: v })}
+              />
+            </View>
+
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingText}>Language</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {['en','ta','hi'].map((lng) => (
+                  <TouchableOpacity
+                    key={lng}
+                    onPress={() => persistSettings({ ...settings, language: lng })}
+                    style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: settings.language===lng ? colors.primary : colors.border }}
+                  >
+                    <Text style={{ color: '#FFFFFF', textTransform: 'uppercase', fontWeight: '600' }}>{lng}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingText}>Theme</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {['light','dark','system'].map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => persistSettings({ ...settings, theme: t })}
+                    style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: settings.theme===t ? colors.primary : colors.border }}
+                  >
+                    <Text style={{ color: '#FFFFFF', textTransform: 'capitalize', fontWeight: '600' }}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        </View>
         <View style={styles.statsCard}>
           <Text style={styles.cardTitle}>Statistics</Text>
           <View style={styles.statsContainer}>

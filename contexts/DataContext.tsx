@@ -13,6 +13,8 @@ export interface Appointment {
   status: 'pending' | 'confirmed' | 'cancelled';
   timestamp: string;
   assignedDate?: string;
+  mode?: 'online' | 'in_person';
+  counselorName?: string;
 }
 
 export interface Admission {
@@ -26,6 +28,10 @@ export interface Admission {
   userId?: string;
   status: 'pending' | 'approved' | 'rejected';
   timestamp: string;
+  previousEducation?: string;
+  percentageOrGPA?: string;
+  guardianName?: string;
+  guardianPhone?: string;
 }
 
 interface DataContextType {
@@ -36,6 +42,8 @@ interface DataContextType {
   updateAppointmentStatus: (id: string, status: Appointment['status'], assignedDate?: string) => Promise<void>;
   updateAdmissionStatus: (id: string, status: Admission['status']) => Promise<void>;
   refreshData: () => Promise<void>;
+  deleteAppointment: (id: string) => Promise<void>;
+  deleteAdmission: (id: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -134,6 +142,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await loadData();
   };
 
+  const deleteAppointment = async (id: string) => {
+    try {
+      const updated = appointments.filter((a) => a.id !== id);
+      setAppointments(updated);
+      await AsyncStorage.setItem('appointments', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+      throw error;
+    }
+  };
+
+  const deleteAdmission = async (id: string) => {
+    try {
+      const updated = admissions.filter((a) => a.id !== id);
+      setAdmissions(updated);
+      await AsyncStorage.setItem('admissions', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error deleting admission:', error);
+      throw error;
+    }
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -144,6 +174,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         updateAppointmentStatus,
         updateAdmissionStatus,
         refreshData,
+        deleteAppointment,
+        deleteAdmission,
       }}
     >
       {children}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,12 @@ import {
   TouchableOpacity,
   Image,
   ImageBackground,
+  Dimensions,
+  Linking,
+  Animated,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Search, GraduationCap, Moon, Sun } from 'lucide-react-native'; // TODO: Add type declarations for 'lucide-react-native' if needed
+import { GraduationCap, MapPin, Phone, Mail } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -90,18 +93,20 @@ const departments = [
 ];
 
 export default function HomeScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredDepartments, setFilteredDepartments] = useState(departments);
   const { colors } = useTheme();
   const { user } = useAuth();
+  const ctaScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    const filtered = departments.filter(dept =>
-      dept.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      dept.description.toLowerCase().includes(searchQuery.toLowerCase())
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(ctaScale, { toValue: 1.04, duration: 900, useNativeDriver: true }),
+        Animated.timing(ctaScale, { toValue: 1.0, duration: 900, useNativeDriver: true }),
+      ])
     );
-    setFilteredDepartments(filtered);
-  }, [searchQuery]);
+    loop.start();
+    return () => loop.stop();
+  }, []);
 
   const handleDepartmentPress = (department: any) => {
     router.push({
@@ -119,7 +124,7 @@ export default function HomeScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <ImageBackground
-        source={{ uri: 'https://images.pexels.com/photos/256490/pexels-photo-256490.jpeg' }}
+        source={{ uri: 'https://i.pinimg.com/736x/86/74/3f/86743f9ed57ec198d0c422c835978f03.jpg' }}
         style={styles.header}
         imageStyle={styles.headerImage}>
         <View style={styles.headerOverlay}>
@@ -133,42 +138,114 @@ export default function HomeScreen() {
       </ImageBackground>
 
       <View style={styles.content}>
-        <View style={styles.searchContainer}>
-          <Search size={20} color={colors.textSecondary} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search departments..."
-            placeholderTextColor={colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+        <Animated.View style={{ transform: [{ scale: ctaScale }] }}>
+          <TouchableOpacity style={styles.admissionButton} onPress={handleAdmissionPress}>
+            <GraduationCap size={24} color="#FFFFFF" />
+            <Text style={styles.admissionButtonText}>Book Admission</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        <View style={styles.collegeDetails}>
+          <Text style={styles.sectionTitle}>College Highlights</Text>
+          <View style={styles.chipsRow}>
+            {[
+              'AICTE Approved',
+              'Anna University Affiliated',
+              'NAAC Accredited',
+              'UGC 2(f) & 12(B) Recognized',
+            ].map((t) => (
+              <View key={t} style={styles.chip}><Text style={styles.chipText}>{t}</Text></View>
+            ))}
+          </View>
+          <Text style={[styles.detailText, { marginTop: 6 }]}>Gojan College Road, Redhills, Chennai – 600 052</Text>
         </View>
 
-        <TouchableOpacity style={styles.admissionButton} onPress={handleAdmissionPress}>
-          <GraduationCap size={24} color="#FFFFFF" />
-          <Text style={styles.admissionButtonText}>Book Admission</Text>
-        </TouchableOpacity>
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>20+</Text>
+            <Text style={styles.statLabel}>Programs</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>10+</Text>
+            <Text style={styles.statLabel}>Clubs</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>8+</Text>
+            <Text style={styles.statLabel}>Sports</Text>
+          </View>
+        </View>
 
-        <Text style={styles.sectionTitle}>Departments</Text>
-        
-        <View style={styles.departmentsGrid}>
-          {filteredDepartments.map((department) => (
-            <TouchableOpacity 
-              key={department.id} 
-              style={styles.departmentCard} 
-              onPress={() => handleDepartmentPress(department)}
-            >
-              <Image source={{ uri: department.image }} style={styles.departmentImage} />
-              <View style={styles.departmentContent}>
-                <Text style={styles.departmentTitle} numberOfLines={2}>
-                  {department.name}
-                </Text>
-                <Text style={styles.departmentDescription} numberOfLines={3}>
-                  {department.description}
-                </Text>
-              </View>
-            </TouchableOpacity>
+        <View style={styles.divider} />
+
+        <Text style={styles.sectionTitle}>Campus Glimpse</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryRow}>
+          {[
+            'https://images.pexels.com/photos/256490/pexels-photo-256490.jpeg',
+            'https://images.pexels.com/photos/207692/pexels-photo-207692.jpeg',
+            'https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg',
+            'https://images.pexels.com/photos/416405/pexels-photo-416405.jpeg',
+          ].map((uri) => (
+            <Image key={uri} source={{ uri }} style={styles.galleryImage} />
           ))}
+        </ScrollView>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.cardTitle}>Why Choose Gojan</Text>
+          <Text style={styles.cardText}>• Strong academics aligned to Anna University with modern curriculum</Text>
+          <Text style={styles.cardText}>• Practical learning with labs, projects, and industry collaboration</Text>
+          <Text style={styles.cardText}>• Placement preparation, soft-skills, and entrepreneurship support</Text>
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.cardTitle}>Departments Snapshot</Text>
+          <Text style={styles.cardText}>• B.E: Aeronautical, CSE (AI&ML), CSE, CSE (Cyber Security), ECE, Mechanical & Automation, Medical Electronics, Computer & Communication, Robotics & Automation</Text>
+          <Text style={styles.cardText}>• B.Tech: IT, AI & Data Science, CSBS, Pharmaceutical Technology, Bio Technology</Text>
+          <Text style={styles.cardText}>• Science & Humanities, MBA</Text>
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.cardTitle}>Campus & Facilities</Text>
+          <Text style={styles.cardText}>• Smart classrooms, modern laboratories, conference halls</Text>
+          <Text style={styles.cardText}>• Library, hostel, canteen, transport, health centre</Text>
+          <Text style={styles.cardText}>• Sports: Cricket, Volleyball, Badminton, Tennis, Basketball, Track</Text>
+          <Text style={styles.cardText}>• Clubs: Reading, Green, English, Photography, Fine Arts, Innovation, NSS, YRC</Text>
+        </View>
+
+        <View style={styles.gridGallery}>
+          {[
+            'https://images.pexels.com/photos/207691/pexels-photo-207691.jpeg',
+            'https://images.pexels.com/photos/207698/pexels-photo-207698.jpeg',
+            'https://images.pexels.com/photos/256541/pexels-photo-256541.jpeg',
+            'https://images.pexels.com/photos/207703/pexels-photo-207703.jpeg',
+          ].map((uri) => (
+            <Image key={uri} source={{ uri }} style={styles.gridImage} />
+          ))}
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.cardTitle}>Placements</Text>
+          <Text style={styles.cardText}>• Corporate connect, recruiters network, career framework</Text>
+          <Text style={styles.cardText}>• Training & placement support with guidance panel and ED Cell</Text>
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.cardTitle}>Contact</Text>
+          <View style={{ gap: 6 }}>
+            <View style={styles.contactRow}><Phone size={16} color={colors.textSecondary} /><Text style={styles.cardText}>044-26311045 | +91 70107 23984</Text></View>
+            <View style={styles.contactRow}><Mail size={16} color={colors.textSecondary} /><Text style={styles.cardText}>gsbt@gsbt.edu.in</Text></View>
+            <View style={styles.contactRow}><MapPin size={16} color={colors.textSecondary} /><Text style={styles.cardText}>Gojan College Road, Edapalayam, Alamathi via, Redhills, Chennai - 600052</Text></View>
+          </View>
+          <View style={styles.contactActions}>
+            <TouchableOpacity style={styles.contactBtn} onPress={() => Linking.openURL('tel:+917010723984')}>
+              <Text style={styles.contactBtnText}>Call Now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.contactBtn} onPress={() => Linking.openURL('mailto:gsbt@gsbt.edu.in')}>
+              <Text style={styles.contactBtnText}>Send Email</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.contactBtn} onPress={() => Linking.openURL('https://maps.google.com/?q=Gojan+College+Road,+Edapalayam,+Alamathi+via,+Redhills,+Chennai+-+600052')}>
+              <Text style={styles.contactBtnText}>Open in Maps</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </ScrollView>
@@ -181,14 +258,14 @@ const createStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    height: 200,
+    height: 220,
     justifyContent: 'flex-end',
   },
   headerImage: {
-    opacity: 0.8,
+    opacity: 1,
   },
   headerOverlay: {
-    backgroundColor: 'rgba(30, 64, 175, 0.8)',
+    // Clean overlay (no glass effects)
     padding: 20,
     paddingTop: 60,
   },
@@ -219,6 +296,125 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   content: {
     padding: 20,
+  },
+  galleryRow: {
+    marginBottom: 20,
+  },
+  galleryImage: {
+    width: 220,
+    height: 130,
+    borderRadius: 12,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  gridGallery: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    marginBottom: 20,
+  },
+  gridImage: {
+    width: '48%',
+    height: 120,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  contactActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  contactBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  contactBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  collegeDetails: {
+    padding: 16,
+    marginBottom: 20,
+  },
+  infoCard: {
+    padding: 16,
+    marginBottom: 16,
+  },
+  cardTitle: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  cardText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  detailItem: {
+    marginBottom: 6,
+  },
+  detailText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  statCard: {
+    flex: 1,
+    marginHorizontal: 6,
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+  },
+  statValue: {
+    color: colors.textPrimary,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  statLabel: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginBottom: 16,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   searchContainer: {
     flexDirection: 'row',

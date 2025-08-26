@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function WelcomeScreen() {
   const { colors } = useTheme();
+  const { user, isLoading } = useAuth();
 
   const handleRoleSelection = async (role: 'admin' | 'student') => {
     try {
@@ -20,6 +22,15 @@ export default function WelcomeScreen() {
   };
 
   const styles = createStyles(colors);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (user?.role === 'admin') {
+      router.replace('/admin/dashboard');
+    } else if (user?.role === 'student') {
+      router.replace('/(tabs)');
+    }
+  }, [user, isLoading]);
 
   return (
     <View style={styles.container}>

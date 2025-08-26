@@ -69,14 +69,25 @@ export default function LoginScreen() {
 
     try {
       await login(email, password);
-      
-      // Route based on selected role
-      if (selectedRole === 'admin') {
+
+      // Load persisted user to determine actual role
+      const storedUser = await AsyncStorage.getItem('user');
+      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+      const actualRole: 'admin' | 'student' | null = parsedUser?.role ?? null;
+
+      if (actualRole === 'admin') {
         router.replace('/admin/dashboard');
-      } else {
+      } else if (actualRole === 'student') {
         router.replace('/(tabs)');
+      } else {
+        // Fallback to selected role routing
+        if (selectedRole === 'admin') {
+          router.replace('/admin/dashboard');
+        } else {
+          router.replace('/(tabs)');
+        }
       }
-      
+
       // Clear the selected role from storage
       await AsyncStorage.removeItem('selectedRole');
     } catch (error) {

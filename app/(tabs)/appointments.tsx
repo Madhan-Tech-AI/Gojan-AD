@@ -17,6 +17,7 @@ export default function AppointmentsScreen() {
   const { user } = useAuth();
   const { appointments, updateAppointmentStatus, refreshData } = useData();
   const [userAppointments, setUserAppointments] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
 
   useEffect(() => {
     refreshData();
@@ -82,7 +83,15 @@ export default function AppointmentsScreen() {
         <Text style={styles.subtitle}>Track your counselling appointments</Text>
       </View>
 
-      {userAppointments.length === 0 ? (
+      <View style={{ paddingHorizontal: 20, marginTop: 4, marginBottom: 8, flexDirection: 'row', gap: 8 }}>
+        {(['all','pending','confirmed','cancelled'] as const).map((f) => (
+          <TouchableOpacity key={f} onPress={() => setStatusFilter(f)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: statusFilter===f ? colors.primary : colors.textSecondary + '20' }}>
+            <Text style={{ color: '#FFFFFF', fontWeight: '600', textTransform: 'capitalize' }}>{f}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {userAppointments.filter(a => statusFilter==='all' ? true : a.status===statusFilter).length === 0 ? (
         <View style={styles.emptyState}>
           <Calendar size={64} color={colors.textSecondary} />
           <Text style={styles.emptyStateTitle}>No Appointments</Text>
@@ -92,7 +101,9 @@ export default function AppointmentsScreen() {
         </View>
       ) : (
         <View style={styles.appointmentsList}>
-          {userAppointments.map((appointment) => (
+          {userAppointments
+            .filter(a => statusFilter==='all' ? true : a.status===statusFilter)
+            .map((appointment) => (
             <View key={appointment.id} style={styles.appointmentCard}>
               <View style={styles.cardHeader}>
                 <View style={styles.statusContainer}>
@@ -146,6 +157,14 @@ export default function AppointmentsScreen() {
                     Preferred: {formatDate(appointment.preferredDate)}
                   </Text>
                 </View>
+                {appointment.assignedDate && (
+                  <View style={styles.infoRow}>
+                    <Clock size={16} color={colors.textSecondary} />
+                    <Text style={styles.infoText}>
+                      Assigned: {formatDate(appointment.assignedDate)}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.infoRow}>
                   <Clock size={16} color={colors.textSecondary} />
                   <Text style={styles.infoText}>

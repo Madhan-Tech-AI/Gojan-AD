@@ -45,6 +45,10 @@ export default function AdmissionScreen() {
     courseInterested: '',
     address: '',
     remarks: '',
+    previousEducation: '',
+    percentageOrGPA: '',
+    guardianName: '',
+    guardianPhone: '',
   });
   const [errors, setErrors] = useState<any>({});
 
@@ -80,6 +84,9 @@ export default function AdmissionScreen() {
     if (!formData.address.trim()) {
       newErrors.address = 'Address is required';
     }
+    if (formData.guardianPhone && !validatePhone(formData.guardianPhone)) {
+      newErrors.guardianPhone = 'Please enter a valid guardian phone number';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -97,6 +104,10 @@ export default function AdmissionScreen() {
         courseInterested: formData.courseInterested,
         address: formData.address,
         remarks: formData.remarks,
+        previousEducation: formData.previousEducation,
+        percentageOrGPA: formData.percentageOrGPA,
+        guardianName: formData.guardianName,
+        guardianPhone: formData.guardianPhone,
         userId: user?.id,
       };
 
@@ -117,6 +128,10 @@ export default function AdmissionScreen() {
         courseInterested: '',
         address: '',
         remarks: '',
+        previousEducation: '',
+        percentageOrGPA: '',
+        guardianName: '',
+        guardianPhone: '',
       });
     } catch (error) {
       Alert.alert('Error', 'Failed to submit application. Please try again.');
@@ -215,6 +230,53 @@ export default function AdmissionScreen() {
           </View>
 
           <View style={styles.inputContainer}>
+            <Text style={styles.label}>Previous Education</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.previousEducation}
+              onChangeText={(text) => setFormData({ ...formData, previousEducation: text })}
+              placeholder="e.g., Higher Secondary, Diploma"
+              placeholderTextColor={colors.textSecondary}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Percentage/GPA</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.percentageOrGPA}
+              onChangeText={(text) => setFormData({ ...formData, percentageOrGPA: text })}
+              placeholder="e.g., 85% or 8.2 CGPA"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="decimal-pad"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Guardian Name</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.guardianName}
+              onChangeText={(text) => setFormData({ ...formData, guardianName: text })}
+              placeholder="Enter guardian's full name"
+              placeholderTextColor={colors.textSecondary}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Guardian Phone</Text>
+            <TextInput
+              style={[styles.input, errors.guardianPhone && styles.inputError]}
+              value={formData.guardianPhone}
+              onChangeText={(text) => setFormData({ ...formData, guardianPhone: text })}
+              placeholder="Enter guardian's phone number"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="phone-pad"
+            />
+            {errors.guardianPhone && <Text style={styles.errorText}>{errors.guardianPhone}</Text>}
+          </View>
+
+          <View style={styles.inputContainer}>
             <Text style={styles.label}>Remarks (Optional)</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
@@ -295,6 +357,10 @@ export default function AdmissionScreen() {
                 courseInterested: '',
                 address: '',
                 remarks: '',
+                previousEducation: '',
+                percentageOrGPA: '',
+                guardianName: '',
+                guardianPhone: '',
               });
               setShowForm(true);
             }}

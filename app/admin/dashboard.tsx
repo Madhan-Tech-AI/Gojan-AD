@@ -16,8 +16,10 @@ import AuthGuard from '@/components/AuthGuard';
 export default function AdminDashboard() {
   const { colors } = useTheme();
   const { user, logout } = useAuth();
-  const { appointments, admissions, updateAppointmentStatus, updateAdmissionStatus, refreshData } = useData();
+  const { appointments, admissions, updateAppointmentStatus, updateAdmissionStatus, refreshData, deleteAppointment, deleteAdmission } = useData();
   const [activeTab, setActiveTab] = useState<'appointments' | 'admissions'>('appointments');
+  const [appointmentFilter, setAppointmentFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
+  const [admissionFilter, setAdmissionFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   useEffect(() => {
     refreshData();
@@ -35,7 +37,8 @@ export default function AdminDashboard() {
   const handleAppointmentAction = async (id: string, action: 'confirm' | 'cancel') => {
     try {
       const status = action === 'confirm' ? 'confirmed' : 'cancelled';
-      await updateAppointmentStatus(id, status);
+      const assignedDate = action === 'confirm' ? new Date().toISOString() : undefined;
+      await updateAppointmentStatus(id, status, assignedDate);
       Alert.alert('Success', `Appointment ${action}ed successfully`);
     } catch (error) {
       Alert.alert('Error', 'Failed to update appointment status');
@@ -50,6 +53,50 @@ export default function AdminDashboard() {
     } catch (error) {
       Alert.alert('Error', 'Failed to update admission status');
     }
+  };
+
+  const handleDeleteAppointment = (id: string) => {
+    Alert.alert(
+      'Delete Appointment',
+      'Are you sure you want to permanently delete this appointment?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAppointment(id);
+              Alert.alert('Deleted', 'Appointment deleted successfully');
+            } catch {
+              Alert.alert('Error', 'Failed to delete appointment');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAdmission = (id: string) => {
+    Alert.alert(
+      'Delete Admission',
+      'Are you sure you want to permanently delete this admission application?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAdmission(id);
+              Alert.alert('Deleted', 'Admission application deleted successfully');
+            } catch {
+              Alert.alert('Error', 'Failed to delete admission');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatDate = (dateString: string) => {
@@ -80,6 +127,11 @@ export default function AdminDashboard() {
           {user?.institutionCode && (
             <Text style={styles.institutionCode}>Code: {user.institutionCode}</Text>
           )}
+          <View style={{ marginTop: 12 }}>
+            <Text style={{ color: '#FFFFFF', opacity: 0.9 }}>
+              Appointments: {appointments.length} | Admissions: {admissions.length}
+            </Text>
+          </View>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
@@ -108,10 +160,19 @@ export default function AdminDashboard() {
           {activeTab === 'appointments' ? (
             <View>
               <Text style={styles.sectionTitle}>Appointment Requests</Text>
+              <View style={{ flexDirection: 'row', marginBottom: 12, gap: 8 }}>
+                {(['all','pending','confirmed','cancelled'] as const).map((f) => (
+                  <TouchableOpacity key={f} onPress={() => setAppointmentFilter(f)} style={[styles.actionButton, appointmentFilter===f && { backgroundColor: colors.primary }]}> 
+                    <Text style={{ color: '#FFFFFF', fontWeight: '600', textTransform: 'capitalize' }}>{f}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               {appointments.length === 0 ? (
                 <Text style={styles.noDataText}>No appointments found</Text>
               ) : (
-                appointments.map((appointment) => (
+                appointments
+                  .filter(a => appointmentFilter === 'all' ? true : a.status === appointmentFilter)
+                  .map((appointment) => (
                   <View key={appointment.id} style={styles.card}>
                     <View style={styles.cardHeader}>
                       <Text style={styles.studentName}>{appointment.name}</Text>
@@ -123,27 +184,38 @@ export default function AdminDashboard() {
                     <Text style={styles.cardText}>Phone: {appointment.phone}</Text>
                     <Text style={styles.cardText}>Department: {appointment.department}</Text>
                     <Text style={styles.cardText}>Preferred Date: {formatDate(appointment.preferredDate)}</Text>
+                    {appointment.assignedDate && (
+                      <Text style={styles.cardText}>Assigned: {formatDate(appointment.assignedDate)}</Text>
+                    )}
                     {appointment.remarks && (
                       <Text style={styles.cardText}>Remarks: {appointment.remarks}</Text>
                     )}
                     <Text style={styles.cardText}>Submitted: {formatDate(appointment.timestamp)}</Text>
                     
-                    {appointment.status === 'pending' && (
-                      <View style={styles.actionButtons}>
-                        <TouchableOpacity 
-                          style={[styles.actionButton, styles.confirmButton]}
-                          onPress={() => handleAppointmentAction(appointment.id, 'confirm')}
-                        >
-                          <Text style={styles.actionButtonText}>Confirm</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={[styles.actionButton, styles.rejectButton]}
-                          onPress={() => handleAppointmentAction(appointment.id, 'cancel')}
-                        >
-                          <Text style={styles.actionButtonText}>Cancel</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                    <View style={styles.actionButtons}>
+                      {appointment.status === 'pending' && (
+                        <>
+                          <TouchableOpacity 
+                            style={[styles.actionButton, styles.confirmButton]}
+                            onPress={() => handleAppointmentAction(appointment.id, 'confirm')}
+                          >
+                            <Text style={styles.actionButtonText}>Confirm</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[styles.actionButton, styles.rejectButton]}
+                            onPress={() => handleAppointmentAction(appointment.id, 'cancel')}
+                          >
+                            <Text style={styles.actionButtonText}>Cancel</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                      <TouchableOpacity 
+                        style={[styles.actionButton, { backgroundColor: colors.error }]}
+                        onPress={() => handleDeleteAppointment(appointment.id)}
+                      >
+                        <Text style={styles.actionButtonText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))
               )}
@@ -151,10 +223,19 @@ export default function AdminDashboard() {
           ) : (
             <View>
               <Text style={styles.sectionTitle}>Admission Applications</Text>
+              <View style={{ flexDirection: 'row', marginBottom: 12, gap: 8 }}>
+                {(['all','pending','approved','rejected'] as const).map((f) => (
+                  <TouchableOpacity key={f} onPress={() => setAdmissionFilter(f)} style={[styles.actionButton, admissionFilter===f && { backgroundColor: colors.primary }]}> 
+                    <Text style={{ color: '#FFFFFF', fontWeight: '600', textTransform: 'capitalize' }}>{f}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               {admissions.length === 0 ? (
                 <Text style={styles.noDataText}>No admission applications found</Text>
               ) : (
-                admissions.map((admission) => (
+                admissions
+                  .filter(a => admissionFilter === 'all' ? true : a.status === admissionFilter)
+                  .map((admission) => (
                   <View key={admission.id} style={styles.card}>
                     <View style={styles.cardHeader}>
                       <Text style={styles.studentName}>{admission.fullName}</Text>
@@ -171,22 +252,30 @@ export default function AdminDashboard() {
                     )}
                     <Text style={styles.cardText}>Applied: {formatDate(admission.timestamp)}</Text>
                     
-                    {admission.status === 'pending' && (
-                      <View style={styles.actionButtons}>
-                        <TouchableOpacity 
-                          style={[styles.actionButton, styles.approveButton]}
-                          onPress={() => handleAdmissionAction(admission.id, 'approve')}
-                        >
-                          <Text style={styles.actionButtonText}>Approve</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={[styles.actionButton, styles.rejectButton]}
-                          onPress={() => handleAdmissionAction(admission.id, 'reject')}
-                        >
-                          <Text style={styles.actionButtonText}>Reject</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                    <View style={styles.actionButtons}>
+                      {admission.status === 'pending' && (
+                        <>
+                          <TouchableOpacity 
+                            style={[styles.actionButton, styles.approveButton]}
+                            onPress={() => handleAdmissionAction(admission.id, 'approve')}
+                          >
+                            <Text style={styles.actionButtonText}>Approve</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[styles.actionButton, styles.rejectButton]}
+                            onPress={() => handleAdmissionAction(admission.id, 'reject')}
+                          >
+                            <Text style={styles.actionButtonText}>Reject</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                      <TouchableOpacity 
+                        style={[styles.actionButton, { backgroundColor: colors.error }]}
+                        onPress={() => handleDeleteAdmission(admission.id)}
+                      >
+                        <Text style={styles.actionButtonText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))
               )}
